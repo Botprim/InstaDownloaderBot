@@ -2,7 +2,7 @@ import telebot
 import instaloader
 from config import BOT_TOKEN, CHANNEL_USERNAME
 
-bot = telebot.TeleBot(7701780212:AAE0mWHCbSkeRlOVsv_iMBZXBQ4WjtDMzps)
+bot = telebot.TeleBot("7701780212:AAE0mWHCbSkeRlOVsv_iMBZXBQ4WjtDMzps")
 loader = instaloader.Instaloader()
 
 # Temporary storage for user login sessions
