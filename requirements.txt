@@ -1,2 +1,5 @@
 pyTelegramBotAPI
 instaloader
+python-telegram-bot
+requests
+python-dotenv  # 👈 Yeh line add karo!
