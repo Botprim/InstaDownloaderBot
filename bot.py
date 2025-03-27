@@ -12,7 +12,7 @@ user_login_prompted = set()  # Track users who need login reminders
 # Function to check if user is subscribed to the channel
 def is_subscribed(user_id):
     try:
-        chat_member = bot.get_chat_member(f"@{CHANNEL_USERNAME}", user_id)
+        chat_member = bot.get_chat_member(f"@{tomjerbackup}", user_id)
         return chat_member.status in ["member", "administrator", "creator"]
     except:
         return False
@@ -64,7 +64,7 @@ def handle_instagram_link(message):
     user_id = message.chat.id
 
     if not is_subscribed(user_id):
-        bot.send_message(user_id, f"⚠️ Pehle @{CHANNEL_USERNAME} ko join karo tabhi bot kaam karega!")
+        bot.send_message(user_id, f"⚠️ Pehle @{tomjerbackup} ko join karo tabhi bot kaam karega!")
         return
 
     bot.send_message(user_id, "🔍 Processing your request...")
