@@ -1,0 +1,12 @@
+services:
+  - name: InstaDownloaderBot
+    type: web
+    runtime: python
+    repo: https://github.com/Botprim/InstaDownloaderBot
+    envVars:
+      - key: 7701780212:AAE0mWHCbSkeRlOVsv_iMBZXBQ4WjtDMzps
+        sync: false
+      - key: tomjerbackup
+        sync: false
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python bot.py"
