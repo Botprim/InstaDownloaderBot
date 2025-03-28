@@ -1,5 +1,7 @@
 pyTelegramBotAPI
+telebot
 instaloader
+flask
 python-telegram-bot
 requests
 python-dotenv  # 👈 Yeh line add karo!
