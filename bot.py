@@ -1,11 +1,9 @@
+import os
 import telebot
 import instaloader
-import os
-import threading
-from flask import Flask
+from flask import Flask, request
 from config import BOT_TOKEN, CHANNEL_USERNAME
 
-# Initialize bot and Instaloader
 bot = telebot.TeleBot(BOT_TOKEN)
 loader = instaloader.Instaloader()
 app = Flask(__name__)
@@ -39,8 +37,8 @@ def download_instagram_media(user_id, url):
             if user_id not in user_sessions:
                 if user_id not in user_login_prompted:
                     user_login_prompted.add(user_id)
-                    return f"⚠️ This is private content. You need to log in first using `/login <username> <password>`."
-                return "⚠️ Please log in first using `/login <username> <password>`."
+                    return "⚠️ This is private content. You need to log in first using /login <username> <password>."
+                return "⚠️ Please log in first using /login <username> <password>."
 
         post = instaloader.Post.from_shortcode(loader.context, url.split("/")[-2])
         media_urls = [post.video_url] if post.is_video else [image.display_url for image in post.get_sidecar_nodes()]
@@ -81,18 +79,24 @@ def handle_instagram_link(message):
     else:
         bot.send_message(user_id, media_urls)
 
-# Fake Web Server for Render Deployment (Prevents "No Open Ports" Error)
-@app.route('/')
+# Webhook route for Telegram
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
+    bot.process_new_updates([update])
+    return "OK", 200
+
+# Home route
+@app.route("/")
 def home():
-    return "Bot is running!"
+    return "🤖 Bot is running!", 200
 
-def run_bot():
-    print("🤖 Bot is running...")
-    bot.polling()
+# Set Webhook when script runs
+def set_webhook():
+    webhook_url = f"https://your-render-url.onrender.com/{BOT_TOKEN}"
+    bot.remove_webhook()
+    bot.set_webhook(url=webhook_url)
 
-# Start bot in a separate thread
-threading.Thread(target=run_bot).start()
-
-# Start Flask server on port 10000 (Render requires open port)
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    set_webhook()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
