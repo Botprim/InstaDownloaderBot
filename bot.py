@@ -1,13 +1,18 @@
 import telebot
 import instaloader
 import os
+import threading
+from flask import Flask
 from config import BOT_TOKEN, CHANNEL_USERNAME
 
+# Initialize bot and Instaloader
 bot = telebot.TeleBot(BOT_TOKEN)
 loader = instaloader.Instaloader()
+app = Flask(__name__)
 
-# Storage for user sessions (temporary, resets on bot restart)
+# Temporary storage for user login sessions
 user_sessions = {}
+user_login_prompted = set()  # Track users who need login reminders
 
 # Function to check if user is subscribed to the channel
 def is_subscribed(user_id):
@@ -17,35 +22,58 @@ def is_subscribed(user_id):
     except:
         return False
 
-# Function to download Instagram media (Public Posts Only)
-def download_instagram_media(url):
+# Function to log in to Instagram
+def login_instagram(user_id, username, password):
     try:
-        shortcode = url.split("/")[-2]  # Extract shortcode from URL
-        post = instaloader.Post.from_shortcode(loader.context, shortcode)
+        loader.context.log("Logging in...")
+        loader.login(username, password)
+        user_sessions[user_id] = {"username": username, "session": loader.context}
+        return "✅ Login Successful! Now send an Instagram link to download private media."
+    except Exception as e:
+        return f"❌ Login Failed: {str(e)}"
 
-        media_urls = []
-        if post.is_video:
-            media_urls.append(post.video_url)
-        else:
-            media_urls.extend([image.display_url for image in post.get_sidecar_nodes()])
+# Function to download Instagram media
+def download_instagram_media(user_id, url):
+    try:
+        if "/stories/" in url or "/highlights/" in url or "/p/" in url:
+            if user_id not in user_sessions:
+                if user_id not in user_login_prompted:
+                    user_login_prompted.add(user_id)
+                    return f"⚠️ This is private content. You need to log in first using `/login <username> <password>`."
+                return "⚠️ Please log in first using `/login <username> <password>`."
 
+        post = instaloader.Post.from_shortcode(loader.context, url.split("/")[-2])
+        media_urls = [post.video_url] if post.is_video else [image.display_url for image in post.get_sidecar_nodes()]
         return media_urls
     except Exception as e:
         return f"❌ Error: {str(e)}"
+
+# Command handler for /login
+@bot.message_handler(commands=['login'])
+def handle_login(message):
+    try:
+        parts = message.text.split()
+        if len(parts) != 3:
+            bot.send_message(message.chat.id, "⚠️ Usage: /login <username> <password>")
+            return
+        
+        username, password = parts[1], parts[2]
+        response = login_instagram(message.chat.id, username, password)
+        bot.send_message(message.chat.id, response)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ Error: {str(e)}")
 
 # Message handler for Instagram links
 @bot.message_handler(func=lambda message: "instagram.com" in message.text)
 def handle_instagram_link(message):
     user_id = message.chat.id
 
-    # Check if user is subscribed to the channel
     if not is_subscribed(user_id):
         bot.send_message(user_id, f"⚠️ Pehle @{CHANNEL_USERNAME} ko join karo tabhi bot kaam karega!")
         return
 
     bot.send_message(user_id, "🔍 Processing your request...")
-
-    media_urls = download_instagram_media(message.text)
+    media_urls = download_instagram_media(user_id, message.text)
 
     if isinstance(media_urls, list):
         for url in media_urls:
@@ -53,6 +81,18 @@ def handle_instagram_link(message):
     else:
         bot.send_message(user_id, media_urls)
 
-# Start bot
-print("🤖 Bot is running...")
-bot.polling()
+# Fake Web Server for Render Deployment (Prevents "No Open Ports" Error)
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_bot():
+    print("🤖 Bot is running...")
+    bot.polling()
+
+# Start bot in a separate thread
+threading.Thread(target=run_bot).start()
+
+# Start Flask server on port 10000 (Render requires open port)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
